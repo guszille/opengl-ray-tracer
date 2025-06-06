@@ -3,7 +3,7 @@
 Application::Application(int screenWidth, int screenHeight)
 	: screenWidth(screenWidth), screenHeight(screenHeight),
 	  keyboardState(), keyboardProcessedState(), mouseState(), mouseProcessedState(), cursorAttached(false), cursorTracked(true), lastMousePosition(), currMousePosition(),
-	  camera(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), { float(screenWidth) / float(screenHeight) }),
+	  camera(glm::vec3(0.0f, 4.0f, 4.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), { float(screenWidth) / float(screenHeight) }),
 	  lastSceneType(SceneTypes::SPHERES), currSceneType(SceneTypes::SPHERES), currScene(nullptr)
 {
 }

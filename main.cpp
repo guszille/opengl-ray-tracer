@@ -76,6 +76,7 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+	glfwWindowHint(GLFW_SAMPLES, 4);
 
 	GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, WINDOW_TITLE.c_str(), NULL, NULL);
 
@@ -109,6 +110,7 @@ int main()
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
+	glEnable(GL_MULTISAMPLE);
 
 	glDepthMask(GL_TRUE); // Allows to enable/disable writing to the depth buffer.
 	glDepthFunc(GL_LESS);

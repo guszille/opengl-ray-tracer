@@ -3,6 +3,16 @@
 #include "../graphics/shader.h"
 #include "../graphics/buffer.h"
 #include "../scene.h"
+#include "../utils/common.h"
+
+struct SpheresSceneUniforms
+{
+	float time;
+
+	glm::vec3 skyColor;
+
+	int maxBounces;
+};
 
 class SpheresScene : public Scene
 {
@@ -23,4 +33,6 @@ private:
 	VAO* quadVAO;
 	VBO* quadVBO;
 	IBO* quadIBO;
+
+	SpheresSceneUniforms uniforms;
 };

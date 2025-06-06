@@ -66,6 +66,9 @@
     <ClCompile Include="external\includes\glad\glad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sources\utils\common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sources\utils\debug.h">
@@ -90,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="sources\scenes\spheres_scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sources\utils\common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
