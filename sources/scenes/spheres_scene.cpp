@@ -2,7 +2,7 @@
 
 SpheresScene::SpheresScene()
 	: Scene(), pathTracerShader(nullptr), quadVAO(nullptr), quadVBO(nullptr), quadIBO(nullptr),
-	  uniforms({ 0.0f, glm::vec3(0.5f, 0.7f, 1.0f), 64 })
+	  uniforms({ 0.0f, glm::vec3(0.5f, 0.7f, 1.0f), 8 })
 {
 }
 
@@ -20,7 +20,7 @@ void SpheresScene::setup()
 		2, 3, 0
 	};
 
-	pathTracerShader = new ShaderProgram("sources/shaders/path_tracer.vert", "sources/shaders/path_tracer.frag");
+	pathTracerShader = new ShaderProgram("sources/shaders/path_tracer.vert", "sources/shaders/path_tracer_refactored.frag");
 
 	pathTracerShader->bind();
 
@@ -139,6 +139,7 @@ void SpheresScene::render(const Camera& camera, float deltaTime)
 
 	pathTracerShader->setUniform3f("uSkyColor", uniforms.skyColor);
 	pathTracerShader->setUniform1i("uMaxBounces", uniforms.maxBounces);
+	// pathTracerShader->setUniform1f("uTime", uniforms.time);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

@@ -102,5 +102,6 @@
   <ItemGroup>
     <None Include="sources\shaders\path_tracer.vert" />
     <None Include="sources\shaders\path_tracer.frag" />
+    <None Include="sources\shaders\path_tracer_refactored.frag" />
   </ItemGroup>
 </Project>

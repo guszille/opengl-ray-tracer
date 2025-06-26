@@ -11,9 +11,9 @@ struct Material
 {
     /* Acceptable types:
      *
-     *  0: LAMBERTIAN
-     *  1: METAL
-     *  2: DIELECTRIC
+     *  0: LAMBERTIAN;
+     *  1: METAL;
+     *  2: DIELECTRIC.
      */
     int type;
 
@@ -42,20 +42,17 @@ struct HitRecord
     bool hit, frontFace;
 };
 
-const int NUM_SPHERES = 68;
+const int NUM_SPHERES = 64 + 4;
+float randomState;
 
 uniform vec3 uCameraPosition;
 uniform mat4 uInverseProjectionMatrix; // To unproject screen coordinates.
 uniform mat4 uInverseViewMatrix; // To transform from camera to world space.
 uniform vec2 uViewportSize = vec2(1600, 900); // Dimensions of the viewport (e.g., window width, window height).
 uniform vec3 uSkyColor = vec3(0.5, 0.7, 1.0); // Background color.
-uniform int uMaxBounces = 64; // Max number of ray bounces.
+uniform int uMaxBounces = 8; // Max number of ray bounces.
 uniform Sphere uSpheres[NUM_SPHERES];
-
-/*
 uniform float uTime;
-
-float randomState;
 
 void startRandomState(vec2 seed)
 {
@@ -64,9 +61,9 @@ void startRandomState(vec2 seed)
 
 float getRandomNumber(float min, float max)
 {
-    randomState = fract(randomState * 16807.0);
+    randomState = fract(randomState * 16807.0 + 0.12345);
 
-    return min + (randomState * (max - min));
+    return min + (max - min) * randomState;
 }
 
 vec3 getRandomVec(float min, float max)
@@ -74,35 +71,14 @@ vec3 getRandomVec(float min, float max)
     return vec3(getRandomNumber(min, max), getRandomNumber(min, max), getRandomNumber(min, max));
 }
 
-vec3 getRandomVecInUnitSphere()
-{
-    while (true)
-    {
-        vec3 p = getRandomVec(-1.0, 1.0);
-
-        if (dot(p, p) < 1.0)
-        {
-            return p;
-        }
-    }
-}
-
 vec3 getRandomUnitVec()
 {
     return normalize(getRandomVec(-1.0, 1.0));
 }
 
-startRandomState((gl_FragCoord.xy / uViewportSize.xy) * uTime);
-*/
-
-float getRandomNumber()
+vec3 getRandomVecInUnitSphere()
 {
-    return 0.5;
-}
-
-vec3 getRandomUnitVec()
-{
-    return vec3(0.0);
+    return getRandomNumber(0.0, 1.0) * getRandomUnitVec();
 }
 
 float getMaterialReflectance(in float indexOfRefraction, in float cosTheta)
@@ -195,6 +171,8 @@ vec3 getRayDirection(in vec2 fragCoord)
 
 void main()
 {
+    startRandomState((gl_FragCoord.xy / uViewportSize.xy) * uTime);
+
     vec3 finalColor = vec3(0.0);
     vec3 accumulatedAttenuation = vec3(1.0); // How much light is carried/reflected.
     bool scattered = true;
@@ -263,7 +241,7 @@ void main()
                 float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
 
                 cannotRefract = cannotRefract || refractionRatio * sinTheta > 1.0;
-                cannotRefract = cannotRefract || getMaterialReflectance(rec.material.indexOfRefraction, cosTheta) > getRandomNumber();
+                cannotRefract = cannotRefract || getMaterialReflectance(rec.material.indexOfRefraction, cosTheta) > getRandomNumber(0.0, 1.0);
 
                 r.origin = rec.point;
 
