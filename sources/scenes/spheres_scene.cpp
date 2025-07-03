@@ -2,7 +2,7 @@
 
 SpheresScene::SpheresScene()
 	: Scene(), pathTracerShader(nullptr), quadVAO(nullptr), quadVBO(nullptr), quadIBO(nullptr),
-	  uniforms({ 0.0f, glm::vec3(0.5f, 0.7f, 1.0f), 8 })
+	  uniforms({ 0.0f, glm::vec3(0.5f, 0.7f, 1.0f), 16, 32 })
 {
 }
 
@@ -49,11 +49,24 @@ void SpheresScene::setup()
 	pathTracerShader->setUniform3f("uSpheres[3].center", glm::vec3(4.0f, 1.0f, 0.0f));
 	pathTracerShader->setUniform1f("uSpheres[3].radius", 1.0f);
 	pathTracerShader->setUniform1i("uSpheres[3].material.type", 1);
-	pathTracerShader->setUniform1f("uSpheres[3].material.fuzz", 0.0f);
+	pathTracerShader->setUniform1f("uSpheres[3].material.fuzz", 0.1f);
 	pathTracerShader->setUniform3f("uSpheres[3].material.albedo", glm::vec3(0.7f, 0.6f, 0.5f));
 	pathTracerShader->setUniform3f("uSpheres[3].material.emission", glm::vec3(0.0f, 0.0f, 0.0f));
 
-	int i = 4;
+	// Sphere 4 (dielectric, emissive).
+	pathTracerShader->setUniform3f("uSpheres[4].center", glm::vec3(4.0f, 4.0f, -4.0f));
+	pathTracerShader->setUniform1f("uSpheres[4].radius", 0.15f);
+	pathTracerShader->setUniform1i("uSpheres[4].material.type", 2);
+	pathTracerShader->setUniform1f("uSpheres[4].material.indexOfRefraction", 1.5f);
+	pathTracerShader->setUniform3f("uSpheres[4].material.emission", glm::vec3(1.0f, 0.9f, 0.8f) * 15.0f);
+
+	// Light.
+	pathTracerShader->setUniform3f("uLights[0].position", glm::vec3(4.0f, 4.0f, 4.0f));
+	pathTracerShader->setUniform3f("uLights[0].color", glm::vec3(1.0f, 0.9f, 0.8f));
+	pathTracerShader->setUniform1f("uLights[0].strength", 15.0f);
+
+	/*
+	int i = 5;
 
 	for (int a = -4; a < 4; a++)
 	{
@@ -96,6 +109,7 @@ void SpheresScene::setup()
 			i++;
 		}
 	}
+	*/
 
 	pathTracerShader->unbind();
 
@@ -139,6 +153,7 @@ void SpheresScene::render(const Camera& camera, float deltaTime)
 
 	pathTracerShader->setUniform3f("uSkyColor", uniforms.skyColor);
 	pathTracerShader->setUniform1i("uMaxBounces", uniforms.maxBounces);
+	pathTracerShader->setUniform1i("uSamplesPerPixel", uniforms.samplesPerPixel);
 	// pathTracerShader->setUniform1f("uTime", uniforms.time);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -157,6 +172,7 @@ void SpheresScene::processGUI()
 
 	ImGui::ColorEdit3("Sky Color", glm::value_ptr(uniforms.skyColor));
 	ImGui::DragInt("Max Bounces", &uniforms.maxBounces, 1, 1, 128);
+	ImGui::DragInt("Samples Per Pixel", &uniforms.samplesPerPixel, 1, 1, 128);
 
 	ImGui::End();
 }

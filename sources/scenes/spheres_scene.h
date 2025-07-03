@@ -11,7 +11,7 @@ struct SpheresSceneUniforms
 
 	glm::vec3 skyColor;
 
-	int maxBounces;
+	int maxBounces, samplesPerPixel;
 };
 
 class SpheresScene : public Scene
