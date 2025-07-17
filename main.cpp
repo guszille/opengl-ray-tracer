@@ -50,10 +50,10 @@ static void showFramesPerSecond(GLFWwindow* window)
 
 	if (delta >= 1.0f / 30.0f)
 	{
-		float FPS = (1.0f / delta) * FRAMES_COUNTER;
-		float ms = (delta / FRAMES_COUNTER) * 1000.0f;
+		float fps = (1.0f / delta) * FRAMES_COUNTER;
+		float mpf = (delta / FRAMES_COUNTER) * 1000.0f;
 
-		std::string newTitle = WINDOW_TITLE + " - [" + std::to_string(int(FPS)) + " FPS / " + std::to_string(ms) + " ms]";
+		std::string newTitle = WINDOW_TITLE + " - [" + std::to_string(int(fps)) + " FPS / " + std::to_string(mpf) + " ms]";
 
 		glfwSetWindowTitle(window, newTitle.c_str());
 
@@ -116,6 +116,7 @@ int main()
 	glDepthFunc(GL_LESS);
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	// glBlendFunc(GL_ONE, GL_ONE);
 
 	// Setup DEBUG context.
 	int contextFlags;

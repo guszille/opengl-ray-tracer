@@ -182,9 +182,10 @@
     <ClInclude Include="sources\utils\debug.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="sources\shaders\path_tracer.frag" />
+    <None Include="sources\shaders\path_tracer_1.frag" />
     <None Include="sources\shaders\path_tracer.vert" />
-    <None Include="sources\shaders\path_tracer_refactored.frag" />
+    <None Include="sources\shaders\path_tracer_2.frag" />
+    <None Include="sources\shaders\path_tracer_3.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

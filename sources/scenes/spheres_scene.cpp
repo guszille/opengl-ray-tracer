@@ -20,7 +20,7 @@ void SpheresScene::setup()
 		2, 3, 0
 	};
 
-	pathTracerShader = new ShaderProgram("sources/shaders/path_tracer.vert", "sources/shaders/path_tracer_refactored.frag");
+	pathTracerShader = new ShaderProgram("sources/shaders/path_tracer.vert", "sources/shaders/path_tracer_2.frag");
 
 	pathTracerShader->bind();
 
@@ -30,13 +30,17 @@ void SpheresScene::setup()
 	pathTracerShader->setUniform1i("uSpheres[0].material.type", 0);
 	pathTracerShader->setUniform3f("uSpheres[0].material.albedo", glm::vec3(0.5f, 0.5f, 0.5f));
 	pathTracerShader->setUniform3f("uSpheres[0].material.emission", glm::vec3(0.0f, 0.0f, 0.0f));
+	pathTracerShader->setUniform1f("uSpheres[0].material.roughness", 0.0f); // Not used.
+	pathTracerShader->setUniform1f("uSpheres[0].material.indexOfRefraction", 0.0f); // Not used.
 
 	// Sphere 1 (dielectric).
 	pathTracerShader->setUniform3f("uSpheres[1].center", glm::vec3(0.0f, 1.0f, 0.0f));
 	pathTracerShader->setUniform1f("uSpheres[1].radius", 1.0f);
 	pathTracerShader->setUniform1i("uSpheres[1].material.type", 2);
-	pathTracerShader->setUniform1f("uSpheres[1].material.indexOfRefraction", 1.5f);
+	pathTracerShader->setUniform3f("uSpheres[1].material.albedo", glm::vec3(0.0f, 0.0f, 0.0f)); // Not used.
 	pathTracerShader->setUniform3f("uSpheres[1].material.emission", glm::vec3(0.0f, 0.0f, 0.0f));
+	pathTracerShader->setUniform1f("uSpheres[1].material.roughness", 0.0f); // Not used.
+	pathTracerShader->setUniform1f("uSpheres[1].material.indexOfRefraction", 1.5f);
 
 	// Sphere 2 (lambertian).
 	pathTracerShader->setUniform3f("uSpheres[2].center", glm::vec3(-4.0f, 1.0f, 0.0f));
@@ -44,26 +48,32 @@ void SpheresScene::setup()
 	pathTracerShader->setUniform1i("uSpheres[2].material.type", 0);
 	pathTracerShader->setUniform3f("uSpheres[2].material.albedo", glm::vec3(0.4f, 0.2f, 0.1f));
 	pathTracerShader->setUniform3f("uSpheres[2].material.emission", glm::vec3(0.0f, 0.0f, 0.0f));
+	pathTracerShader->setUniform1f("uSpheres[2].material.roughness", 0.0f); // Not used.
+	pathTracerShader->setUniform1f("uSpheres[2].material.indexOfRefraction", 0.0f); // Not used.
 
 	// Sphere 3 (metal).
 	pathTracerShader->setUniform3f("uSpheres[3].center", glm::vec3(4.0f, 1.0f, 0.0f));
 	pathTracerShader->setUniform1f("uSpheres[3].radius", 1.0f);
 	pathTracerShader->setUniform1i("uSpheres[3].material.type", 1);
-	pathTracerShader->setUniform1f("uSpheres[3].material.fuzz", 0.1f);
 	pathTracerShader->setUniform3f("uSpheres[3].material.albedo", glm::vec3(0.7f, 0.6f, 0.5f));
 	pathTracerShader->setUniform3f("uSpheres[3].material.emission", glm::vec3(0.0f, 0.0f, 0.0f));
+	pathTracerShader->setUniform1f("uSpheres[3].material.roughness", 0.1f);
+	pathTracerShader->setUniform1f("uSpheres[3].material.indexOfRefraction", 0.0f); // Not used.
 
 	// Sphere 4 (dielectric, emissive).
 	pathTracerShader->setUniform3f("uSpheres[4].center", glm::vec3(4.0f, 4.0f, -4.0f));
 	pathTracerShader->setUniform1f("uSpheres[4].radius", 0.15f);
 	pathTracerShader->setUniform1i("uSpheres[4].material.type", 2);
-	pathTracerShader->setUniform1f("uSpheres[4].material.indexOfRefraction", 1.5f);
+	pathTracerShader->setUniform3f("uSpheres[4].material.albedo", glm::vec3(0.0f, 0.0f, 0.0f)); // Not used.
 	pathTracerShader->setUniform3f("uSpheres[4].material.emission", glm::vec3(1.0f, 0.9f, 0.8f) * 15.0f);
+	pathTracerShader->setUniform1f("uSpheres[4].material.roughness", 0.0f); // Not used.
+	pathTracerShader->setUniform1f("uSpheres[4].material.indexOfRefraction", 1.5f);
 
 	// Light.
-	pathTracerShader->setUniform3f("uLights[0].position", glm::vec3(4.0f, 4.0f, 4.0f));
-	pathTracerShader->setUniform3f("uLights[0].color", glm::vec3(1.0f, 0.9f, 0.8f));
-	pathTracerShader->setUniform1f("uLights[0].strength", 15.0f);
+	uniforms.lights[0].position = glm::vec3(4.0f, 4.0f, 4.0f);
+	uniforms.lights[0].color = glm::vec3(1.0f, 0.9f, 0.8f);
+	uniforms.lights[0].radius = 0.15f;
+	uniforms.lights[0].power = 15.0f;
 
 	/*
 	int i = 5;
@@ -156,6 +166,11 @@ void SpheresScene::render(const Camera& camera, float deltaTime)
 	pathTracerShader->setUniform1i("uSamplesPerPixel", uniforms.samplesPerPixel);
 	// pathTracerShader->setUniform1f("uTime", uniforms.time);
 
+	pathTracerShader->setUniform3f("uLights[0].position", uniforms.lights[0].position);
+	pathTracerShader->setUniform3f("uLights[0].color", uniforms.lights[0].color);
+	pathTracerShader->setUniform1f("uLights[0].radius", uniforms.lights[0].radius);
+	pathTracerShader->setUniform1f("uLights[0].power", uniforms.lights[0].power);
+
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -170,9 +185,16 @@ void SpheresScene::processGUI()
 	bool dialogOpen = true;
 	ImGui::Begin("Spheres Scene", &dialogOpen, ImGuiWindowFlags_MenuBar);
 
+	ImGui::SeparatorText("General");
 	ImGui::ColorEdit3("Sky Color", glm::value_ptr(uniforms.skyColor));
 	ImGui::DragInt("Max Bounces", &uniforms.maxBounces, 1, 1, 128);
-	ImGui::DragInt("Samples Per Pixel", &uniforms.samplesPerPixel, 1, 1, 128);
+	ImGui::DragInt("Samples Per Pixel", &uniforms.samplesPerPixel, 1, 1, 256);
+
+	ImGui::SeparatorText("Lights");
+	ImGui::DragFloat3("Light [0] Position", glm::value_ptr(uniforms.lights[0].position));
+	ImGui::ColorEdit3("Light [0] Color", glm::value_ptr(uniforms.lights[0].color));
+	ImGui::DragFloat("Light [0] Radius", &uniforms.lights[0].radius, 0.05f, 0.05f, 5.0f);
+	ImGui::DragFloat("Light [0] Power", &uniforms.lights[0].power, 0.0f, 0.5f, 100.0f);
 
 	ImGui::End();
 }

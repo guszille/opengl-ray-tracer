@@ -17,9 +17,9 @@ struct Material
      */
     int type;
 
-    vec3 albedo, emission;
+    vec3 albedo, specular, emission;
 
-    float fuzz, indexOfRefraction;
+    float roughness, indexOfRefraction;
 };
 
 struct Sphere
@@ -35,7 +35,7 @@ struct PointLight
 {
     vec3 position, color;
 
-    float strength;
+    float radius, power;
 };
 
 struct HitRecord
@@ -61,64 +61,51 @@ uniform mat4 uInverseViewMatrix; // To transform from camera to world space.
 uniform vec2 uViewportSize = vec2(1600, 900); // Dimensions of the viewport (e.g., window width, window height).
 uniform vec3 uSkyColor = vec3(0.5, 0.7, 1.0); // Background color.
 uniform int uMaxBounces = 16; // Max number of ray bounces.
+uniform int uMaxShadowRays = 16; // Max number of rays cast to compute shadow.
 uniform int uSamplesPerPixel = 32;
 uniform Sphere uSpheres[NUM_SPHERES];
 uniform PointLight uLights[NUM_LIGHTS];
 // uniform float uTime;
 
-/*
-float randomNumber(vec2 seed)
+float getRandomFloat(in vec2 seed)
 {
     return fract(sin(dot(seed, vec2(12.9898, 78.2330))) * 43758.5453123);
 }
 
-vec3 randomInUnitSphere(vec2 seed)
+vec3 getRandomVecInUnitSphere(in vec2 seed)
 {
-    float r1 = random(seed);
-    float r2 = random(seed + vec2(0.1));
-    float phi = 2.0 * PI * r1;
-    float cosTheta = 2.0 * r2 - 1.0;
-    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
-
-    return vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
-}
-*/
-
-uint pcg(inout uint state) // PCG hashing function for high-quality random numbers.
-{
-    uint oldState = state;
-    uint word = ((oldState >> ((oldState >> 28u) + 4u)) ^ oldState) * 277803737u;
-
-    state = oldState * 747796405u + 2891336453u;
-
-    return (word >> 22u) ^ word;
-}
-
-float randomNumber(inout uint state) // Returns a random float in [0, 1) using the PRNG state.
-{
-    return float(pcg(state)) / float(0xffffffffu);
-}
-
-vec3 randomInUnitSphere(in float alpha, inout uint state)
-{
-    /*
     vec3 p;
 
     do
     {
-        p = 2.0 * vec3(randomNumber(state), randomNumber(state), randomNumber(state)) - vec3(1.0);
+        p = 2.0 * vec3(getRandomFloat(seed), getRandomFloat(seed), getRandomFloat(seed)) - vec3(1.0);
     } while (dot(p, p) >= 1.0);
 
     return p;
-    */
+}
 
-    float r1 = randomNumber(state);
-    float r2 = randomNumber(state);
-    float phi = 2.0 * PI * r1;
-    float cosTheta = pow(r2, 1.0 / (alpha + 1.0));
+mat3x3 getTangentSpace(in vec3 normal)
+{
+    vec3 helper = abs(normal.x) > 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent = normalize(cross(normal, helper));
+    vec3 binormal = normalize(cross(normal, tangent));
+
+    return mat3x3(tangent, binormal, normal);
+}
+
+vec3 sampleHemisphere(in vec3 normal, in float roughness, in vec2 seed)
+{
+    float r1 = getRandomFloat(seed.xy);
+    float r2 = getRandomFloat(seed.yx);
+    float smoothness = 1.0 - roughness;
+    float alpha = pow(1000.0, smoothness * smoothness);
+    float cosTheta = pow(r1, 1.0 / (alpha + 1.0));
     float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    float phi = 2.0 * PI * r2;
 
-    return vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+    vec3 tangentSpaceDirection = vec3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+
+    return getTangentSpace(normal) * tangentSpaceDirection;
 }
 
 void setHitRecordFaceNormal(in Ray r, in vec3 outwardNormal, inout HitRecord rec)
@@ -175,9 +162,9 @@ bool sphereHit(in Ray r, in Sphere s, in float tMin, in float tMax, inout HitRec
 
 bool worldHit(in Ray r, in float tMin, in float tMax, inout HitRecord rec)
 {
-    bool hit = false;
     float closestSoFar = tMax;
     HitRecord closestRec;
+    bool hit = false;
 
     for (int i = 0; i < NUM_SPHERES; i++)
     {
@@ -200,14 +187,14 @@ float getMaterialReflectance(in float indexOfRefraction, in float cosTheta)
     return r0 + (1.0 - r0) * pow((1 - cosTheta), 5.0);
 }
 
-bool scatterLambertian(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, inout uint randState)
+bool scatterLambertian(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, in vec2 seed)
 {
-    vec3 scatterDirection = rec.normal + randomInUnitSphere(1.0, randState);
+    vec3 scatterDirection = sampleHemisphere(rec.normal, 1.0, seed);
 
-    if (length(scatterDirection) < EPSILON)
-    {
-        scatterDirection = rec.normal;
-    }
+    // if (length(scatterDirection) < EPSILON)
+    // {
+    //     scatterDirection = rec.normal;
+    // }
 
     attenuation = rec.material.albedo;
     scattered = Ray(rec.point, normalize(scatterDirection));
@@ -215,13 +202,10 @@ bool scatterLambertian(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray
     return true;
 }
 
-bool scatterMetal(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, inout uint randState)
+bool scatterMetal(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, in vec2 seed)
 {
-    float smoothness = 1.0 - rec.material.fuzz;
-    float alpha = pow(1000.0, smoothness * smoothness);
-
     vec3 reflected = reflect(normalize(r.direction), rec.normal);
-    vec3 scatterDirection = reflected + (rec.material.fuzz * randomInUnitSphere(alpha, randState));
+    vec3 scatterDirection = sampleHemisphere(reflected, rec.material.roughness, seed);
 
     attenuation = rec.material.albedo;
     scattered = Ray(rec.point, normalize(scatterDirection));
@@ -229,12 +213,10 @@ bool scatterMetal(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scat
     return dot(scattered.direction, rec.normal) > 0.0;
 }
 
-bool scatterDielectric(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, inout uint randState)
+bool scatterDielectric(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray scattered, in vec2 seed)
 {
-    /*
     float refractionRatio = rec.frontFace ? (1.0 / rec.material.indexOfRefraction) : rec.material.indexOfRefraction;
     float reflectance = 1.0;
-
     vec3 normalizedDirection = normalize(r.direction);
     vec3 refracted = refract(normalizedDirection, rec.normal, refractionRatio);
     vec3 scatterDirection;
@@ -247,7 +229,7 @@ bool scatterDielectric(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray
         reflectance = getMaterialReflectance(rec.material.indexOfRefraction, cosTheta);
     }
 
-    if (reflectance > randomNumber(randState))
+    if (reflectance > getRandomFloat(seed))
     {
         scatterDirection = reflect(normalizedDirection, rec.normal);
     }
@@ -260,67 +242,53 @@ bool scatterDielectric(in Ray r, in HitRecord rec, out vec3 attenuation, out Ray
     scattered = Ray(rec.point, scatterDirection);
 
     return true;
-    */
-
-    vec3 normalizedDirection = normalize(r.direction);
-    bool cannotRefract = false;
-    vec3 scatterDirection;
-
-    float cosTheta = min(dot(-normalizedDirection, rec.normal), 1.0);
-    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
-    float refractionRatio = rec.frontFace ? (1.0 / rec.material.indexOfRefraction) : rec.material.indexOfRefraction;
-    float reflectance = getMaterialReflectance(rec.material.indexOfRefraction, cosTheta);
-
-    cannotRefract = cannotRefract || refractionRatio * sinTheta > 1.0;
-    cannotRefract = cannotRefract || reflectance > randomNumber(randState);
-
-    if (cannotRefract)
-    {
-        scatterDirection = reflect(normalizedDirection, rec.normal);
-    }
-    else
-    {
-        scatterDirection = refract(normalizedDirection, rec.normal, refractionRatio);
-    }
-
-    attenuation = vec3(1.0);
-    scattered = Ray(rec.point, scatterDirection);
-
-    return true;
 }
 
-vec3 computeDirectIllumination(in HitRecord rec, inout uint randState)
+vec3 getDirectIllumination(in HitRecord rec, in vec2 seed)
 {
     vec3 accumulatedContribution = vec3(0.0);
 
     for (int i = 0; i < NUM_LIGHTS; i++)
     {
         PointLight light = uLights[i];
-        vec3 lightDirection = normalize(light.position - rec.point);
+        int hits = 0;
 
         float lightDistance = length(light.position - rec.point);
-        float NdotL = max(0.0, dot(rec.normal, lightDirection));
+        float attenuation = lightDistance * lightDistance;
+        float NdotL = clamp(dot(rec.normal, normalize(light.position - rec.point)), 0.0, 1.0);
 
-        // Calculate difuse contribution.
-        if (NdotL > 0.0)
+        if (NdotL > EPSILON)
         {
-            HitRecord shadowRec;
-
-            // Cast a shadow ray to check for occlusion.
-            if (!worldHit(Ray(rec.point, lightDirection), EPSILON, lightDistance - EPSILON, shadowRec))
+            for (int j = 0; j < uMaxShadowRays; j++)
             {
-                // If not in shadow, add the light's contribution.
-                float attenuation = lightDistance * lightDistance;
+                float x = getRandomFloat(seed + rec.point.xy + vec2(j));
+                float y = getRandomFloat(seed + rec.point.yz + vec2(j));
+                float z = getRandomFloat(seed + rec.point.zx + vec2(j));
 
-                accumulatedContribution += rec.material.albedo * light.color * light.strength * NdotL / attenuation;
+                vec3 randomDirection = normalize(vec3(x, y, z));
+                vec3 lightSurfacePoint = light.position + randomDirection * light.radius;
+                vec3 lightDirection = normalize(lightSurfacePoint - rec.point);
+
+                Ray shadowRay = Ray(rec.point, lightDirection);
+                HitRecord shadowRec;
+
+                // Cast a shadow ray to check for occlusion.
+                if (!worldHit(shadowRay, EPSILON, lightDistance - EPSILON, shadowRec))
+                {
+                    hits += 1;
+                }
             }
         }
+
+        float shadowFactor = 1.0 - (float(hits) / uMaxShadowRays);
+
+        accumulatedContribution += rec.material.albedo * light.color * light.power * NdotL * shadowFactor / attenuation;
     }
 
     return accumulatedContribution;
 }
 
-vec3 getColor(in Ray r, inout uint randState)
+vec3 getColor(in Ray r, in vec2 seed)
 {
     vec3 accumulatedAttenuation = vec3(1.0);
     vec3 accumulatedColor = vec3(0.0);
@@ -335,22 +303,16 @@ vec3 getColor(in Ray r, inout uint randState)
             Ray scattered;
 
             // Add emitted light from the surface itself.
-            if (bounce == 0)
-            {
-                accumulatedColor += rec.material.emission;
-            }
+            accumulatedColor += accumulatedAttenuation * rec.material.emission;
 
             // Add direct illumination using "Next Event Estimation".
-            if (rec.material.type == 0) // Lambertian material.
-            {
-                accumulatedColor += accumulatedAttenuation * computeDirectIllumination(rec, randState);
-            }
+            accumulatedColor += accumulatedAttenuation * getDirectIllumination(rec, seed);
 
             // Scatter a ray for the next bounce (indirect illumination).
             switch (rec.material.type)
             {
             case 0: // Lambertian material.
-                if (scatterLambertian(r, rec, attenuation, scattered, randState))
+                if (scatterLambertian(r, rec, attenuation, scattered, rec.point.xz + vec2(rec.point.y)))
                 {
                     accumulatedAttenuation *= attenuation;
                     r = scattered;
@@ -358,7 +320,7 @@ vec3 getColor(in Ray r, inout uint randState)
                 break;
 
             case 1: // Metal material.
-                if (scatterMetal(r, rec, attenuation, scattered, randState))
+                if (scatterMetal(r, rec, attenuation, scattered, rec.point.xz + vec2(rec.point.y)))
                 {
                     accumulatedAttenuation *= attenuation;
                     r = scattered;
@@ -370,7 +332,7 @@ vec3 getColor(in Ray r, inout uint randState)
                 break;
 
             case 2: // Dielectric material.
-                if (scatterDielectric(r, rec, attenuation, scattered, randState))
+                if (scatterDielectric(r, rec, attenuation, scattered, rec.point.xz + vec2(rec.point.y)))
                 {
                     accumulatedAttenuation *= attenuation;
                     r = scattered;
@@ -383,11 +345,12 @@ vec3 getColor(in Ray r, inout uint randState)
         }
         else
         {
-            float a = 0.5 * (normalize(r.direction).y + 1.0);
-            float s = 0.05; // Sky color strength.
+            float alpha = 0.5 * (normalize(r.direction).y + 1.0);
 
             // Ray missed all objects, add sky/background color.
-            accumulatedColor += accumulatedAttenuation * (((1.0 - a) * vec3(1.0) + a * uSkyColor) * s);
+            accumulatedColor += accumulatedAttenuation * ((1.0 - alpha) * vec3(1.0) + alpha * uSkyColor);
+
+            break;
         }
     }
 
@@ -412,23 +375,11 @@ vec3 getRayDirection(in vec2 fragCoord)
 
 void main()
 {
-    vec3 color = vec3(0.0);
+    vec2 seed = (gl_FragCoord.xy - 0.5 * uViewportSize.xy) / uViewportSize.y;
+    vec3 rayDirection = getRayDirection(gl_FragCoord.xy);
 
-    for (int s = 0; s < uSamplesPerPixel; s++)
-    {
-        // Initialize PRNG state uniquely for each pixel AND each sample.
-        uint randState = uint(gl_FragCoord.x) * 196314165u + uint(gl_FragCoord.y) * 937197125u + uint(s) * 497196613u;
-
-        // Jitter the pixel coordinate for each sample.
-        vec2 fragCoord = gl_FragCoord.xy + vec2(randomNumber(randState), randomNumber(randState));
-        vec3 rayDirection = getRayDirection(fragCoord);
-
-        Ray r = Ray(uCameraPosition, rayDirection);
-
-        color += getColor(r, randState);
-    }
-
-    color = color / float(uSamplesPerPixel);
+    Ray r = Ray(uCameraPosition, rayDirection);
+    vec3 color = getColor(r, seed);
 
     // Apply gamma correction.
     float gamma = 2.2;
